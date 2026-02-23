@@ -584,17 +584,38 @@
             }
         }
 
-        // 60fps listening loop — smoothly interpolates toward raw mic data
+        // Per-bar energy targets (updated from audio callback)
+        let barTargets = new Float32Array(48);
+        let micEnergy = 0; // overall energy for scaling the ripple
+
+        // Called from onaudioprocess to compute targets
+        function updateBarTargets(raw) {
+            const bars = 48;
+            const step = Math.floor(raw.length / bars);
+            let totalE = 0;
+            for (let i = 0; i < bars; i++) {
+                let sum = 0;
+                for (let j = 0; j < step; j++) sum += Math.abs(raw[i * step + j] || 0);
+                barTargets[i] = (sum / step) * 600;
+                totalE += barTargets[i];
+            }
+            micEnergy = totalE / bars;
+        }
+
+        // 60fps listening loop — lerp toward targets + procedural ripple
         function animateListening() {
             if (uiState !== 'listening') return;
             const h = canvas.height / devicePixelRatio;
-            const bars = 48;
-            const step = Math.floor(waveRaw.length / bars);
+            const t = performance.now() / 1000;
 
-            for (let i = 0; i < bars; i++) {
-                let sum = 0;
-                for (let j = 0; j < step; j++) sum += Math.abs(waveRaw[i * step + j] || 0);
-                const target = Math.min(h - 4, (sum / step) * 600);
+            for (let i = 0; i < 48; i++) {
+                // Procedural ripple scaled by current mic energy
+                const ripple = micEnergy * (
+                    0.3 * Math.sin(t * 4.5 + i * 0.28)
+                  + 0.2 * Math.sin(t * 7.1 + i * 0.45)
+                  + 0.15 * Math.sin(t * 11 + i * 0.13)
+                );
+                const target = Math.min(h - 4, barTargets[i] + ripple);
                 waveSmooth[i] += (target - waveSmooth[i]) * WAVE_LERP;
             }
             renderBars('rgba(59, 130, 246, 0.7)');
@@ -839,8 +860,8 @@
                     let s = ''; for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
                     ws.send(JSON.stringify({ type: 'audio', data: btoa(s) }));
 
-                    // Store for waveform (rendered at 60fps by animateListening)
-                    waveRaw = new Float32Array(d);
+                    // Update bar targets (rendered at 60fps by animateListening)
+                    updateBarTargets(d);
 
                     // Silence detect
                     if (continuous) {
