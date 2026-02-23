@@ -1,12 +1,12 @@
 [project]
-name = "openclaw-voice"
+name = "openclaw-voice-control"
 version = "0.1.0"
 description = "Self-hosted browser-based voice interface for AI assistants"
 readme = "README.md"
 requires-python = ">=3.10,<3.14"
 license = {text = "MIT"}
 authors = [
-    {name = "Purple Horizons", email = "hello@purplehorizons.io"}
+    {name = "Cnid"}
 ]
 keywords = ["voice", "ai", "assistant", "whisper", "tts", "stt"]
 classifiers = [
@@ -39,7 +39,7 @@ tts = [
     "torchaudio>=2.1.0",
 ]
 all = [
-    "openclaw-voice[stt,tts]",
+    "openclaw-voice-control[stt,tts]",
 ]
 dev = [
     "pytest>=7.4.0",
@@ -49,9 +49,9 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Purple-Horizons/openclaw-voice"
-Repository = "https://github.com/Purple-Horizons/openclaw-voice"
-Issues = "https://github.com/Purple-Horizons/openclaw-voice/issues"
+Homepage = "https://github.com/OpenCnid/openclaw-voice-control"
+Repository = "https://github.com/OpenCnid/openclaw-voice-control"
+Issues = "https://github.com/OpenCnid/openclaw-voice-control/issues"
 
 [build-system]
 requires = ["hatchling"]

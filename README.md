@@ -1,4 +1,4 @@
-# OpenClaw Voice
+# 🦞 Voice Control
 
 **Open-source browser-based voice interface for AI assistants.**
 
@@ -6,8 +6,6 @@ Talk to your AI like you talk to Alexa — but self-hosted, private, and connect
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.10+-green.svg)
-
-🌐 **Website:** [openclawvoice.com](https://openclawvoice.com)
 
 ## Features
 
@@ -25,8 +23,8 @@ Talk to your AI like you talk to Alexa — but self-hosted, private, and connect
 
 ```bash
 # Clone
-git clone https://github.com/Purple-Horizons/openclaw-voice.git
-cd openclaw-voice
+git clone https://github.com/OpenCnid/openclaw-voice-control.git
+cd openclaw-voice-control
 
 # Install
 python3 -m venv .venv
@@ -52,8 +50,8 @@ One-liner for AI agents to self-install:
 
 ```bash
 cd /tmp && \
-git clone https://github.com/Purple-Horizons/openclaw-voice.git && \
-cd openclaw-voice && \
+git clone https://github.com/OpenCnid/openclaw-voice-control.git && \
+cd openclaw-voice-control && \
 python3 -m venv .venv && source .venv/bin/activate && \
 pip install -r requirements.txt torch torchaudio && \
 PYTHONPATH=. ELEVENLABS_API_KEY="$ELEVENLABS_API_KEY" OPENAI_API_KEY="$OPENAI_API_KEY" \
@@ -230,4 +228,4 @@ MIT License — see [LICENSE](LICENSE).
 
 ---
 
-**Made with 🦞 by [Purple Horizons](https://purplehorizons.io)**
+**Made with 🦞 by [Cnid](https://github.com/OpenCnid)**

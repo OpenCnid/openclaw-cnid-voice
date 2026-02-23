@@ -1,5 +1,5 @@
 """
-Unit tests for OpenClaw Voice modules.
+Unit tests for Voice Control modules.
 """
 
 import pytest

@@ -1,4 +1,4 @@
-# OpenClaw Voice: Talk to Your AI Like You Talk to Alexa
+# Voice Control: Talk to Your AI Like You Talk to Alexa
 
 **Free. Open-source. Self-hosted. No subscriptions.**
 
@@ -16,7 +16,7 @@ Neither is great.
 
 ## The Solution
 
-**OpenClaw Voice** is a browser-based voice interface you can self-host in 5 minutes.
+**Voice Control** is a browser-based voice interface you can self-host in 5 minutes.
 
 - 🎤 **Local STT** — Whisper runs on YOUR machine. Your voice never leaves your server.
 - 🔊 **Premium TTS** — ElevenLabs integration for natural speech.
@@ -37,8 +37,8 @@ That's it. Your voice gets transcribed locally, sent to your AI, and the respons
 If you're technical (or have an AI assistant that is):
 
 ```bash
-git clone https://github.com/Purple-Horizons/openclaw-voice.git
-cd openclaw-voice
+git clone https://github.com/OpenCnid/openclaw-voice-control.git
+cd openclaw-voice-control
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 ELEVENLABS_API_KEY="your-key" OPENAI_API_KEY="your-key" \
@@ -77,14 +77,14 @@ Because voice AI shouldn't be a subscription.
 
 The models exist. The tools exist. The only thing missing was someone putting them together in a way that doesn't require a PhD in audio engineering.
 
-OpenClaw Voice is MIT licensed. Fork it. Modify it. Run it on a Raspberry Pi. We don't care. Just build cool stuff.
+Voice Control is MIT licensed. Fork it. Modify it. Run it on a Raspberry Pi. We don't care. Just build cool stuff.
 
 ## Links
 
 - 🦞 **Website:** [openclawvoice.com](https://openclawvoice.com)
-- 📦 **GitHub:** [github.com/Purple-Horizons/openclaw-voice](https://github.com/Purple-Horizons/openclaw-voice)
+- 📦 **GitHub:** [github.com/OpenCnid/openclaw-voice-control](https://github.com/OpenCnid/openclaw-voice-control)
 - 🔧 **OpenClaw:** [openclaw.ai](https://openclaw.ai)
 
 ---
 
-*Built by [Purple Horizons](https://purplehorizons.io) in Miami. Part of the OpenClaw ecosystem.*
+*Made with 🦞 by [Cnid](https://github.com/OpenCnid). Part of the OpenClaw ecosystem.*

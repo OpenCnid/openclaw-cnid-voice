@@ -1,4 +1,4 @@
-# OpenClaw Voice Skill
+# Voice Control Skill
 
 Browser-based voice chat for OpenClaw agents.
 
@@ -53,8 +53,8 @@ Add to your `openclaw.json`:
 
 ```bash
 # Clone and setup
-git clone https://github.com/Purple-Horizons/openclaw-voice.git
-cd openclaw-voice
+git clone https://github.com/OpenCnid/openclaw-voice-control.git
+cd openclaw-voice-control
 uv sync  # or pip install -r requirements.txt
 
 # Configure
@@ -110,4 +110,4 @@ Then generate user keys via `POST /api/keys`.
 
 ## License
 
-MIT — Built by [Purple Horizons](https://purplehorizons.io)
+MIT — Made with 🦞 by [Cnid](https://github.com/OpenCnid)

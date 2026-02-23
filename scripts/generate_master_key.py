@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate a secure master API key for OpenClaw Voice.
+Generate a secure master API key for Voice Control.
 
 Usage:
     python scripts/generate_master_key.py
@@ -20,7 +20,7 @@ if __name__ == "__main__":
     key = generate_master_key()
     
     print("=" * 60)
-    print("OpenClaw Voice Master Key")
+    print("Voice Control Master Key")
     print("=" * 60)
     print()
     print(f"OPENCLAW_MASTER_KEY={key}")

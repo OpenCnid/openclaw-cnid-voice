@@ -1,6 +1,6 @@
-# Deploy OpenClaw Voice on RunPod
+# Deploy Voice Control on RunPod
 
-Deploy OpenClaw Voice on RunPod for GPU-accelerated voice inference.
+Deploy Voice Control on RunPod for GPU-accelerated voice inference.
 
 ## Quick Deploy
 
@@ -12,8 +12,8 @@ Sign up at [runpod.io](https://runpod.io)
 Use our pre-built template:
 
 ```
-Template ID: openclaw-voice
-Docker Image: ghcr.io/purple-horizons/openclaw-voice:latest
+Template ID: openclaw-voice-control
+Docker Image: ghcr.io/opencnid/openclaw-voice-control:latest
 ```
 
 Or deploy manually:
@@ -22,7 +22,7 @@ Or deploy manually:
 
 **Create a new Pod:**
 - GPU: RTX 4090 recommended ($0.44/hr)
-- Docker Image: `ghcr.io/purple-horizons/openclaw-voice:latest`
+- Docker Image: `ghcr.io/opencnid/openclaw-voice-control:latest`
 - Expose Port: 8765
 - Volume: 20GB (for model cache)
 

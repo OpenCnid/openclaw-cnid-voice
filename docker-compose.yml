@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  openclaw-voice:
+  openclaw-voice-control:
     build: .
     ports:
       - "8765:8765"
@@ -33,7 +33,7 @@ services:
       start_period: 60s
 
   # CPU-only version (no GPU required)
-  openclaw-voice-cpu:
+  openclaw-voice-control-cpu:
     build: .
     ports:
       - "8766:8765"

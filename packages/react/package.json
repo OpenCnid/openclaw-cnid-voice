@@ -1,7 +1,7 @@
 {
   "name": "@openclaw/voice-widget-react",
   "version": "0.1.0",
-  "description": "React component for OpenClaw Voice - self-hosted voice AI interface",
+  "description": "React component for Voice Control - self-hosted voice AI interface",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -31,11 +31,11 @@
     "tts",
     "openclaw"
   ],
-  "author": "Purple Horizons <hello@purplehorizons.io>",
+  "author": "Cnid",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Purple-Horizons/openclaw-voice.git",
+    "url": "https://github.com/OpenCnid/openclaw-voice-control.git",
     "directory": "packages/react"
   }
 }

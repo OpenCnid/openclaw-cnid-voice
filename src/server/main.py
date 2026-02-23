@@ -1,5 +1,5 @@
 """
-OpenClaw Voice Server
+Voice Control Server
 
 WebSocket server that handles:
 - Audio input from browser
@@ -70,7 +70,7 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-app = FastAPI(title="OpenClaw Voice", version="0.1.0")
+app = FastAPI(title="Voice Control", version="0.1.0")
 
 # Global instances (initialized on startup)
 stt: Optional[WhisperSTT] = None
@@ -84,7 +84,7 @@ async def startup():
     """Initialize models on server start."""
     global stt, tts, backend, vad
     
-    logger.info("Initializing OpenClaw Voice server...")
+    logger.info("Initializing Voice Control server...")
     
     # Load API keys
     load_keys_from_env()
@@ -140,7 +140,7 @@ async def startup():
     logger.info("Loading VAD model")
     vad = VoiceActivityDetector()
     
-    logger.info("✅ OpenClaw Voice server ready!")
+    logger.info("✅ Voice Control server ready!")
 
 
 @app.get("/")
