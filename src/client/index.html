@@ -37,10 +37,152 @@
             height: 100vh;
             height: 100dvh;
             display: flex;
-            flex-direction: column;
             overflow: hidden;
             -webkit-font-smoothing: antialiased;
         }
+
+        /* ─── Sidebar ─── */
+        .sidebar {
+            width: 260px;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            transition: margin-left 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 20;
+        }
+        .sidebar.collapsed { margin-left: -260px; }
+
+        .sidebar-header {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sidebar-brand span { font-size: 0.85rem; font-weight: 600; }
+
+        .new-chat-btn {
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            border-radius: 8px;
+            font-size: 0.78rem;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .new-chat-btn:hover { border-color: var(--blue); color: var(--text); }
+
+        .session-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+        .session-list::-webkit-scrollbar { width: 3px; }
+        .session-list::-webkit-scrollbar-thumb { background: #27272a; border-radius: 3px; }
+
+        .session-item {
+            padding: 8px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            transition: background 0.1s;
+            margin-bottom: 2px;
+        }
+        .session-item:hover { background: var(--bg); }
+        .session-item.active { background: var(--blue-dim); }
+
+        .session-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .session-title {
+            font-size: 0.78rem;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .session-item.active .session-title { color: #fff; }
+
+        .session-date {
+            font-size: 0.6rem;
+            color: var(--text-muted);
+            margin-top: 1px;
+        }
+
+        .session-delete {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            opacity: 0;
+            transition: opacity 0.15s, color 0.15s;
+            flex-shrink: 0;
+        }
+        .session-item:hover .session-delete { opacity: 1; }
+        .session-delete:hover { color: #ef4444; }
+
+        .sidebar-footer {
+            padding: 8px 12px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 8px;
+        }
+        .sidebar-footer button {
+            flex: 1;
+            padding: 6px;
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            border-radius: 6px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .sidebar-footer button:hover { border-color: #3f3f46; color: var(--text-dim); }
+
+        /* ─── Main Content ─── */
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .hamburger {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            font-size: 1.1rem;
+            padding: 2px 4px;
+            border-radius: 4px;
+            transition: color 0.15s;
+            display: flex;
+            align-items: center;
+        }
+        .hamburger:hover { color: var(--text); }
 
         /* ─── Header ─── */
         .header {
@@ -581,18 +723,57 @@
         }
 
         /* Mobile */
-        @media (max-width: 600px) {
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: 0; top: 0; bottom: 0;
+                margin-left: 0;
+                box-shadow: 8px 0 24px rgba(0,0,0,0.4);
+            }
+            .sidebar.collapsed { margin-left: -260px; box-shadow: none; }
+            .sidebar-backdrop {
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,0.4);
+                z-index: 19;
+                display: none;
+            }
+            .sidebar-backdrop.show { display: block; }
             .msg { max-width: 88%; }
             .orb-btn { width: 80px; height: 80px; font-size: 1.7rem; }
             .orb-wrap { width: 80px; height: 80px; }
             .chat { padding: 16px 12px; }
         }
+        @media (min-width: 769px) {
+            .sidebar-backdrop { display: none !important; }
+        }
     </style>
 </head>
 <body>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-brand">
+                <span>🦞 Voice Control</span>
+                <button class="icon-btn" id="sidebarClose" title="Close sidebar">✕</button>
+            </div>
+            <button class="new-chat-btn" id="newChatBtn">+ New Chat</button>
+        </div>
+        <div class="session-list" id="sessionList"></div>
+        <div class="sidebar-footer">
+            <button id="exportAllBtn" title="Export current">📥 Export</button>
+            <button id="settingsBtnSidebar" title="Settings">⚙ Settings</button>
+        </div>
+    </div>
+
+    <!-- Mobile backdrop -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+    <!-- Main Content -->
+    <div class="main">
     <div class="header">
         <div class="header-left">
-            <span class="header-title">🦞 Voice Control</span>
+            <button class="hamburger" id="hamburgerBtn" title="Toggle sidebar">☰</button>
             <div class="status-pill">
                 <span class="status-dot" id="dot"></span>
                 <span id="connLabel">Connecting</span>
@@ -607,8 +788,6 @@
                 </label>
                 <label class="toggle-label" for="continuousMode">Continuous</label>
             </div>
-            <button class="icon-btn" id="newSessionBtn" title="New session">↻</button>
-            <button class="icon-btn" id="settingsBtn" title="Settings">⚙</button>
         </div>
     </div>
 
@@ -640,6 +819,7 @@
         Made with 🦞 by <a href="https://github.com/OpenCnid">Cnid</a> ·
         <a href="https://github.com/OpenCnid/openclaw-voice-control">GitHub</a>
     </div>
+    </div><!-- /main -->
 
     <!-- Settings Panel -->
     <div class="settings-overlay" id="settingsOverlay"></div>
@@ -1215,8 +1395,171 @@
             localStorage.setItem('vc_silence', settings.silence);
         });
 
-        // ── Export Transcript ──
-        $('exportBtn').addEventListener('click', () => {
+        // ── Multi-Session Management ──
+        const SESSIONS_INDEX = 'vc_sessions';   // [{id, title, created, updated}]
+        const ACTIVE_KEY = 'vc_active';          // active session id
+        let activeSessionId = null;
+
+        function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+        function getSessions() {
+            try { return JSON.parse(localStorage.getItem(SESSIONS_INDEX) || '[]'); } catch { return []; }
+        }
+
+        function saveSessions(list) {
+            try { localStorage.setItem(SESSIONS_INDEX, JSON.stringify(list)); } catch(e) { /* quota */ }
+        }
+
+        function getSessionMsgs(id) {
+            try { return JSON.parse(localStorage.getItem('vc_s_' + id) || '[]'); } catch { return []; }
+        }
+
+        function saveSessionMsgs(id, msgs) {
+            try { localStorage.setItem('vc_s_' + id, JSON.stringify(msgs)); } catch(e) { /* quota */ }
+        }
+
+        function collectMsgs() {
+            const msgs = [];
+            chat.querySelectorAll('.msg').forEach(m => {
+                msgs.push({
+                    role: m.classList.contains('msg-user') ? 'user' : 'ai',
+                    text: m.getAttribute('data-text') || m.querySelector('.msg-bubble')?.textContent || '',
+                    time: m.querySelector('.msg-time')?.textContent || '',
+                });
+            });
+            return msgs;
+        }
+
+        function saveCurrentSession() {
+            if (!activeSessionId) return;
+            const msgs = collectMsgs();
+            saveSessionMsgs(activeSessionId, msgs);
+
+            // Update title + timestamp in index
+            const sessions = getSessions();
+            const s = sessions.find(x => x.id === activeSessionId);
+            if (s) {
+                s.updated = Date.now();
+                if (!s.title && msgs.length) {
+                    const first = msgs.find(m => m.role === 'user');
+                    if (first) s.title = first.text.slice(0, 50);
+                }
+                saveSessions(sessions);
+            }
+            renderSidebar();
+        }
+
+        function loadSession(id) {
+            // Save current first
+            if (activeSessionId && activeSessionId !== id) saveCurrentSession();
+
+            activeSessionId = id;
+            localStorage.setItem(ACTIVE_KEY, id);
+
+            // Clear chat
+            chat.innerHTML = '';
+
+            const msgs = getSessionMsgs(id);
+            if (!msgs.length) {
+                empty.style.display = '';
+                chat.appendChild(empty);
+            } else {
+                hideEmpty();
+                msgs.forEach(m => {
+                    const el = addMsg(m.role, m.text);
+                    const timeEl = el.querySelector('.msg-time');
+                    if (timeEl && m.time) timeEl.textContent = m.time;
+                });
+            }
+
+            // Reset backend conversation
+            if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'new_session' }));
+            renderSidebar();
+        }
+
+        function createNewSession() {
+            if (activeSessionId) saveCurrentSession();
+            const id = genId();
+            const sessions = getSessions();
+            sessions.unshift({ id, title: '', created: Date.now(), updated: Date.now() });
+            saveSessions(sessions);
+            loadSession(id);
+            closeSidebar();
+        }
+
+        function deleteSession(id) {
+            let sessions = getSessions();
+            sessions = sessions.filter(s => s.id !== id);
+            saveSessions(sessions);
+            localStorage.removeItem('vc_s_' + id);
+
+            if (id === activeSessionId) {
+                if (sessions.length) loadSession(sessions[0].id);
+                else createNewSession();
+            }
+            renderSidebar();
+        }
+
+        // ── Sidebar Rendering ──
+        const sessionList = $('sessionList');
+
+        function renderSidebar() {
+            const sessions = getSessions();
+            sessionList.innerHTML = '';
+
+            if (!sessions.length) {
+                sessionList.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:0.75rem;">No conversations yet</div>';
+                return;
+            }
+
+            // Group by date
+            const today = new Date().toDateString();
+            const yesterday = new Date(Date.now() - 86400000).toDateString();
+
+            sessions.forEach(s => {
+                const el = document.createElement('div');
+                el.className = 'session-item' + (s.id === activeSessionId ? ' active' : '');
+
+                const d = new Date(s.updated || s.created);
+                const dateStr = d.toDateString() === today ? 'Today'
+                    : d.toDateString() === yesterday ? 'Yesterday'
+                    : d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+
+                el.innerHTML = `
+                    <div class="session-info">
+                        <div class="session-title">${esc(s.title || 'New conversation')}</div>
+                        <div class="session-date">${dateStr}</div>
+                    </div>
+                    <button class="session-delete" title="Delete">🗑</button>`;
+
+                el.querySelector('.session-info').addEventListener('click', () => loadSession(s.id));
+                el.querySelector('.session-delete').addEventListener('click', e => {
+                    e.stopPropagation();
+                    deleteSession(s.id);
+                });
+
+                sessionList.appendChild(el);
+            });
+        }
+
+        // ── Sidebar Toggle ──
+        const sidebar = $('sidebar');
+        const backdrop = $('sidebarBackdrop');
+        const sidebarCollapsed = localStorage.getItem('vc_sidebar') === 'collapsed';
+
+        function openSidebar() { sidebar.classList.remove('collapsed'); backdrop.classList.add('show'); localStorage.setItem('vc_sidebar', 'open'); }
+        function closeSidebar() { sidebar.classList.add('collapsed'); backdrop.classList.remove('show'); localStorage.setItem('vc_sidebar', 'collapsed'); }
+        function toggleSidebar() { sidebar.classList.contains('collapsed') ? openSidebar() : closeSidebar(); }
+
+        $('hamburgerBtn').addEventListener('click', toggleSidebar);
+        $('sidebarClose').addEventListener('click', closeSidebar);
+        backdrop.addEventListener('click', closeSidebar);
+        $('newChatBtn').addEventListener('click', createNewSession);
+
+        if (sidebarCollapsed) sidebar.classList.add('collapsed');
+
+        // ── Export ──
+        function exportTranscript() {
             const msgs = chat.querySelectorAll('.msg');
             if (!msgs.length) { showToast('No messages to export'); return; }
             let text = '# Voice Control Transcript\n# ' + new Date().toLocaleString() + '\n\n';
@@ -1234,77 +1577,63 @@
             a.click();
             URL.revokeObjectURL(url);
             showToast('Transcript exported');
+        }
+        $('exportBtn').addEventListener('click', () => { exportTranscript(); closeSettings(); });
+        $('exportAllBtn').addEventListener('click', exportTranscript);
+        $('settingsBtnSidebar').addEventListener('click', () => { openSettings(); closeSidebar(); });
+
+        $('clearHistoryBtn').addEventListener('click', () => {
+            getSessions().forEach(s => localStorage.removeItem('vc_s_' + s.id));
+            localStorage.removeItem(SESSIONS_INDEX);
+            createNewSession();
+            showToast('All history cleared');
             closeSettings();
         });
-
-        // ── Session Persistence ──
-        const SESSION_KEY = 'vc_messages';
-
-        function saveSession() {
-            const msgs = [];
-            chat.querySelectorAll('.msg').forEach(m => {
-                msgs.push({
-                    role: m.classList.contains('msg-user') ? 'user' : 'ai',
-                    text: m.getAttribute('data-text') || m.querySelector('.msg-bubble')?.textContent || '',
-                    time: m.querySelector('.msg-time')?.textContent || '',
-                });
-            });
-            try { localStorage.setItem(SESSION_KEY, JSON.stringify(msgs)); } catch(e) { /* quota */ }
-        }
-
-        function restoreSession() {
-            try {
-                const raw = localStorage.getItem(SESSION_KEY);
-                if (!raw) return;
-                const msgs = JSON.parse(raw);
-                if (!msgs.length) return;
-                hideEmpty();
-                msgs.forEach(m => {
-                    const el = addMsg(m.role, m.text);
-                    // Override the auto-generated timestamp with the saved one
-                    const timeEl = el.querySelector('.msg-time');
-                    if (timeEl && m.time) timeEl.textContent = m.time;
-                });
-            } catch(e) { /* corrupt data */ }
-        }
 
         // Auto-save after each message
         const origAddMsg = addMsg;
         addMsg = function(role, text) {
             const el = origAddMsg(role, text);
-            setTimeout(saveSession, 100); // debounce slightly
+            setTimeout(saveCurrentSession, 100);
             return el;
         };
 
-        // Also save on response complete
         const origHandle = handle;
         handle = function(m) {
             origHandle(m);
-            if (m.type === 'response_complete') setTimeout(saveSession, 200);
+            if (m.type === 'response_complete') setTimeout(saveCurrentSession, 200);
         };
 
-        $('clearHistoryBtn').addEventListener('click', () => {
-            localStorage.removeItem(SESSION_KEY);
-            chat.innerHTML = '';
-            empty.style.display = '';
-            chat.appendChild(empty);
-            if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'new_session' }));
-            showToast('History cleared');
-            closeSettings();
-        });
+        // ── Migrate old single-session data ──
+        function migrateOldSession() {
+            const old = localStorage.getItem('vc_messages');
+            if (!old) return;
+            try {
+                const msgs = JSON.parse(old);
+                if (msgs.length) {
+                    const id = genId();
+                    saveSessionMsgs(id, msgs);
+                    const first = msgs.find(m => m.role === 'user');
+                    saveSessions([{ id, title: first ? first.text.slice(0, 50) : 'Migrated', created: Date.now(), updated: Date.now() }]);
+                    activeSessionId = id;
+                    localStorage.setItem(ACTIVE_KEY, id);
+                }
+                localStorage.removeItem('vc_messages');
+            } catch(e) { localStorage.removeItem('vc_messages'); }
+        }
 
-        // Update newSessionBtn to also clear saved session
-        $('newSessionBtn').addEventListener('click', () => {
-            localStorage.removeItem(SESSION_KEY);
-            chat.innerHTML = '';
-            empty.style.display = '';
-            chat.appendChild(empty);
-            if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'new_session' }));
-            showToast('New session started');
-        });
-
-        // ── Init ──
-        restoreSession();
+        // ── Init Sessions ──
+        migrateOldSession();
+        const sessions = getSessions();
+        const savedActive = localStorage.getItem(ACTIVE_KEY);
+        if (savedActive && sessions.find(s => s.id === savedActive)) {
+            loadSession(savedActive);
+        } else if (sessions.length) {
+            loadSession(sessions[0].id);
+        } else {
+            createNewSession();
+        }
+        renderSidebar();
 
         if (continuous) {
             $('continuousMode').checked = true;
