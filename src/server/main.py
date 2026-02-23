@@ -117,8 +117,8 @@ async def startup():
     
     if gateway_url and gateway_token:
         # Use OpenClaw gateway (connects to Aria!)
-        # Route to main agent's workspace — same personality, memory, tools
-        voice_agent = os.getenv("OPENCLAW_VOICE_AGENT", "main")
+        # Route to voice agent — Sonnet, shared workspace, orchestration tools only
+        voice_agent = os.getenv("OPENCLAW_VOICE_AGENT", "voice")
         logger.info(f"🦞 Connecting to OpenClaw gateway: {gateway_url} (agent: {voice_agent})")
         backend = AIBackend(
             backend_type="openai",  # Gateway speaks OpenAI API
