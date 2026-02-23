@@ -422,6 +422,17 @@
                     if (currentResponseElement) {
                         currentResponseElement.innerHTML = `<strong>AI:</strong> ${renderMarkdown(msg.text)}`;
                     }
+                    // Safety net: if audio queue is empty and continuous mode is on,
+                    // restart listening. Covers cases where onAudioComplete didn't fire
+                    // (long tool-use delays, audio context issues, etc.)
+                    if (continuousMode && !isRecording) {
+                        setTimeout(() => {
+                            if (continuousMode && !isRecording && !isPlayingQueue) {
+                                console.log('Safety net: restarting continuous listening after response_complete');
+                                onAudioComplete();
+                            }
+                        }, 2000);
+                    }
                     break;
                 case 'audio_response':
                     // Legacy non-streaming audio

@@ -125,11 +125,14 @@ async def startup():
             url=f"{gateway_url}/v1",
             model=f"openclaw:{voice_agent}",
             api_key=gateway_token,
+            max_tokens=300,  # Keep voice responses short
             system_prompt=(
                 "This conversation is happening via real-time voice chat. "
-                "Keep responses concise and conversational — a few sentences "
-                "at most unless the topic genuinely needs depth. "
-                "No markdown, bullet points, code blocks, or special formatting."
+                "Keep responses concise and conversational — 2-4 sentences max. "
+                "DO NOT use any tools (browser, exec, file read, web search, etc). "
+                "Just talk. No markdown, bullet points, code blocks, or formatting. "
+                "If someone asks you to do something that requires tools, tell them "
+                "to ask you in the text chat instead."
             ),
         )
     else:

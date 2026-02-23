@@ -18,11 +18,13 @@ class AIBackend:
         model: str = "gpt-4o-mini",
         api_key: Optional[str] = None,
         system_prompt: Optional[str] = None,
+        max_tokens: int = 500,
     ):
         self.backend_type = backend_type
         self.url = url
         self.model = model
         self.api_key = api_key
+        self.max_tokens = max_tokens
         self.system_prompt = system_prompt or (
             "You are a helpful voice assistant. Keep responses concise and conversational. "
             "Aim for 1-2 sentences unless more detail is needed."
@@ -97,7 +99,7 @@ class AIBackend:
             response = await self._client.chat.completions.create(
                 model=self.model,
                 messages=messages,
-                max_tokens=500,  # Allow longer for voice
+                max_tokens=self.max_tokens,  # Allow longer for voice
                 temperature=0.7,
             )
             
@@ -133,7 +135,7 @@ class AIBackend:
             stream = await self._client.chat.completions.create(
                 model=self.model,
                 messages=messages,
-                max_tokens=500,
+                max_tokens=self.max_tokens,
                 temperature=0.7,
                 stream=True,
             )
