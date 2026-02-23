@@ -358,6 +358,12 @@ async def websocket_endpoint(websocket: WebSocket):
                 await websocket.send_json({"type": "listening_stopped"})
                 logger.debug("Stopped listening")
                 
+            elif msg["type"] == "new_session":
+                # Clear conversation history for a fresh start
+                if backend:
+                    backend.clear_history()
+                logger.info("Session reset by client")
+                
             elif msg["type"] == "cancel_listening":
                 # Client detected noise/too-short — discard without processing
                 is_listening = False

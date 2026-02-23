@@ -475,7 +475,7 @@
                 </label>
                 <label class="toggle-label" for="continuousMode">Continuous</label>
             </div>
-            <button class="icon-btn" id="clearBtn" title="Clear chat">✕</button>
+            <button class="icon-btn" id="newSessionBtn" title="New session">↻</button>
         </div>
     </div>
 
@@ -527,7 +527,8 @@
         // ── State ──
         let ws = null;
         let audioCtx = null, audioSrc = null, audioProc = null, mic = null;
-        let recording = false, continuous = false;
+        let recording = false;
+        let continuous = localStorage.getItem('voiceControlContinuous') === 'true';
         let speechDetected = false, recStart = 0;
         let uiState = 'idle'; // idle | listening | processing | speaking
         const SILENCE_MS = 2000, MIN_DUR = 600, MIN_LEN = 2;
@@ -919,14 +920,20 @@
             }
         });
 
-        $('clearBtn').addEventListener('click', () => {
+        $('newSessionBtn').addEventListener('click', () => {
+            // Clear chat + reset backend conversation history
             chat.innerHTML = '';
             empty.style.display = '';
             chat.appendChild(empty);
+            if (ws && ws.readyState === 1) {
+                ws.send(JSON.stringify({ type: 'new_session' }));
+            }
+            showToast('New session started');
         });
 
         $('continuousMode').addEventListener('change', e => {
             continuous = e.target.checked;
+            localStorage.setItem('voiceControlContinuous', continuous);
             setState('idle');
             if (continuous)
                 navigator.mediaDevices.getUserMedia({ audio: true }).then(s => mic = s).catch(e => showToast('Mic: ' + e.message));
@@ -934,6 +941,13 @@
         });
 
         // ── Init ──
+        // Restore continuous mode from localStorage
+        if (continuous) {
+            $('continuousMode').checked = true;
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(s => mic = s)
+                .catch(e => showToast('Mic: ' + e.message));
+        }
         connect();
         setInterval(() => { if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'ping' })); }, 30000);
     })();
