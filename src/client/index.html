@@ -228,13 +228,33 @@
         .msg-bubble a { color: #93c5fd; text-decoration: none; }
         .msg-bubble a:hover { text-decoration: underline; }
 
-        .msg-time {
-            font-size: 0.6rem;
-            color: var(--text-muted);
+        .msg-meta {
+            display: flex;
+            align-items: center;
+            gap: 6px;
             margin-top: 3px;
             padding: 0 4px;
         }
-        .msg-user .msg-time { text-align: right; }
+        .msg-user .msg-meta { justify-content: flex-end; }
+
+        .msg-time {
+            font-size: 0.6rem;
+            color: var(--text-muted);
+        }
+
+        .msg-copy {
+            font-size: 0.6rem;
+            color: var(--text-muted);
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0 2px;
+            opacity: 0;
+            transition: opacity 0.15s, color 0.15s;
+        }
+        .msg:hover .msg-copy { opacity: 1; }
+        .msg-copy:hover { color: var(--text-dim); }
+        .msg-copy.copied { color: var(--green); }
 
         /* ─── Voice Bar ─── */
         .voice-bar {
@@ -401,6 +421,26 @@
             75% { content: '...'; }
         }
 
+        /* ── State: Interruptable (processing/speaking with cancel) ── */
+        .orb-btn.interruptable {
+            cursor: pointer;
+        }
+        .orb-btn.interruptable::after {
+            content: '⏹';
+            position: absolute;
+            font-size: 0.6rem;
+            bottom: -2px;
+            right: -2px;
+            background: #27272a;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--border);
+        }
+
         /* Keyboard hint */
         .kb-hint {
             font-size: 0.65rem;
@@ -500,7 +540,7 @@
         </div>
 
         <div class="state-label" id="stateLabel">Hold to talk</div>
-        <div class="kb-hint"><kbd>Space</kbd> to talk</div>
+        <div class="kb-hint"><kbd>Space</kbd> talk · <kbd>Esc</kbd> stop</div>
     </div>
 
     <div class="footer">
@@ -649,8 +689,41 @@
             waveAnim = requestAnimationFrame(animateProcessing);
         }
 
+        // ── Haptic feedback ──
+        function haptic(pattern) {
+            if (navigator.vibrate) navigator.vibrate(pattern);
+        }
+
+        // ── Interrupt / Cancel ──
+        function interruptSpeaking() {
+            // Stop all queued and playing audio
+            audioQ = [];
+            playing = false;
+            if (playCtx && playCtx.state !== 'closed') {
+                playCtx.close().catch(() => {});
+                playCtx = null;
+            }
+            haptic(30);
+            audioDone();
+        }
+
+        function cancelProcessing() {
+            // Can't actually cancel the server-side request, but we can
+            // ignore incoming chunks and move on
+            streamTxt = '';
+            curMsgEl = null;
+            haptic(30);
+            if (continuous) {
+                setState('listening');
+                setTimeout(() => continuous && startRec(), 300);
+            } else {
+                setState('idle');
+            }
+        }
+
         // ── UI State Machine ──
         function setState(state, label) {
+            haptic(state === 'listening' ? 20 : state === 'speaking' ? [10, 30, 10] : 0);
             uiState = state;
             voiceBar.className = 'voice-bar' + (state !== 'idle' ? ` state-${state}` : '');
 
@@ -669,6 +742,9 @@
                 : txt;
 
             waveWrap.classList.toggle('visible', state !== 'idle');
+
+            // Show interrupt indicator on orb during speaking/processing
+            orbBtn.classList.toggle('interruptable', state === 'speaking' || state === 'processing');
 
             if (waveAnim) { cancelAnimationFrame(waveAnim); waveAnim = null; }
 
@@ -691,9 +767,21 @@
             hideEmpty();
             const el = document.createElement('div');
             el.className = `msg msg-${role === 'user' ? 'user' : 'ai'}`;
+            el.setAttribute('data-text', text);
             el.innerHTML = `
                 <div class="msg-bubble">${role === 'user' ? esc(text) : md(text)}</div>
-                <div class="msg-time">${now()}</div>`;
+                <div class="msg-meta">
+                    <span class="msg-time">${now()}</span>
+                    <button class="msg-copy" title="Copy">📋</button>
+                </div>`;
+            el.querySelector('.msg-copy').addEventListener('click', e => {
+                const raw = el.getAttribute('data-text');
+                navigator.clipboard.writeText(raw).then(() => {
+                    e.target.textContent = '✓';
+                    e.target.classList.add('copied');
+                    setTimeout(() => { e.target.textContent = '📋'; e.target.classList.remove('copied'); }, 1500);
+                });
+            });
             chat.appendChild(el);
             chat.scrollTop = chat.scrollHeight;
             return el;
@@ -777,7 +865,10 @@
                     break;
 
                 case 'response_complete':
-                    if (curMsgEl) curMsgEl.querySelector('.msg-bubble').innerHTML = md(m.text);
+                    if (curMsgEl) {
+                        curMsgEl.querySelector('.msg-bubble').innerHTML = md(m.text);
+                        curMsgEl.setAttribute('data-text', m.text);
+                    }
                     if (continuous && !recording)
                         setTimeout(() => { if (continuous && !recording && !playing) audioDone(); }, 2000);
                     break;
@@ -911,12 +1002,23 @@
         orbBtn.addEventListener('mouseleave', () => { if (!continuous && recording) stopRec(); });
         orbBtn.addEventListener('touchstart', e => { e.preventDefault(); if (!continuous) startRec(); });
         orbBtn.addEventListener('touchend', () => { if (!continuous) stopRec(); });
-        orbBtn.addEventListener('click', () => { if (continuous) { recording ? stopRec() : startRec(); } });
+        orbBtn.addEventListener('click', () => {
+            if (uiState === 'speaking') { interruptSpeaking(); return; }
+            if (uiState === 'processing') { cancelProcessing(); return; }
+            if (continuous) { recording ? stopRec() : startRec(); }
+        });
 
         document.addEventListener('keydown', e => {
             if (e.code === 'Space' && !e.repeat && e.target === document.body) {
                 e.preventDefault();
+                if (uiState === 'speaking') { interruptSpeaking(); return; }
+                if (uiState === 'processing') { cancelProcessing(); return; }
                 recording ? stopRec() : startRec();
+            }
+            if (e.code === 'Escape') {
+                if (uiState === 'speaking') interruptSpeaking();
+                else if (uiState === 'processing') cancelProcessing();
+                else if (recording) stopRec();
             }
         });
 
