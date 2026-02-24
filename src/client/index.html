@@ -1328,7 +1328,13 @@
                     }
                     addMsg('user', m.text);
                     setState('processing');
-                    streamTxt = ''; curMsgEl = null; audioQ = [];
+                    // Cut off any audio still playing from previous response
+                    audioQ = [];
+                    if (playing) {
+                        playing = false;
+                        if (playCtx && playCtx.state !== 'closed') { playCtx.close().catch(() => {}); playCtx = null; }
+                    }
+                    streamTxt = ''; curMsgEl = null;
                     break;
 
                 case 'response_chunk':
@@ -1354,6 +1360,15 @@
                         setState('paused');
                     else if (!continuous && !playing)
                         setState('idle');
+                    // Safety: if audio is playing, ensure we recover if audioDone never fires
+                    else if (playing) {
+                        setTimeout(() => {
+                            if (uiState === 'processing' || uiState === 'speaking') {
+                                playing = false;
+                                audioDone();
+                            }
+                        }, 20000);
+                    }
                     break;
 
                 case 'vad_status':
