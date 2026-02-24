@@ -1339,6 +1339,7 @@
 
                 case 'audio_chunk':
                     queueAudio(m.data);
+                    if (uiState !== 'speaking') setState('speaking');
                     break;
 
                 case 'response_complete':
