@@ -26,6 +26,12 @@ class AIBackend:
         self.api_key = api_key
         self.max_tokens = max_tokens
         self.system_prompt = system_prompt  # None = let OpenClaw handle system prompt
+        self.voice_hint = (
+            "[Voice mode] This conversation is via real-time voice. "
+            "Keep responses concise — 2-5 sentences unless more detail is genuinely needed. "
+            "No markdown, bullet points, or formatting — everything is spoken aloud. "
+            "Be natural and conversational."
+        )
         self.conversation_history: List[Dict] = []
         self._client = None
         self._setup_client()
@@ -89,7 +95,12 @@ class AIBackend:
         })
         
         # Build messages
-        messages = ([{"role": "system", "content": self.system_prompt}] if self.system_prompt else [])
+        if self.system_prompt:
+            messages = [{"role": "system", "content": self.system_prompt}]
+        else:
+            # Gateway mode: inject voice hint as first user context
+            messages = [{"role": "user", "content": self.voice_hint},
+                        {"role": "assistant", "content": "Got it — voice mode. I'll keep it concise and natural."}]
         messages.extend(self.conversation_history[-10:])  # Last 10 turns
         
         try:
@@ -123,7 +134,12 @@ class AIBackend:
         })
         
         # Build messages
-        messages = ([{"role": "system", "content": self.system_prompt}] if self.system_prompt else [])
+        if self.system_prompt:
+            messages = [{"role": "system", "content": self.system_prompt}]
+        else:
+            # Gateway mode: inject voice hint as first user context
+            messages = [{"role": "user", "content": self.voice_hint},
+                        {"role": "assistant", "content": "Got it — voice mode. I'll keep it concise and natural."}]
         messages.extend(self.conversation_history[-10:])
         
         full_response = ""
