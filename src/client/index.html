@@ -1038,6 +1038,7 @@
         // ── State ──
         let ws = null;
         let audioCtx = null, audioSrc = null, workletNode = null, mic = null;
+        let hpFilter = null; // BiquadFilterNode high-pass (removes rumble)
         let workletReady = false; // AudioWorklet module loaded
         let recording = false;
         // Default to continuous (always-on) for fresh installs
@@ -1559,6 +1560,9 @@
         function onWorkletMessage(e) {
             const msg = e.data;
             if (msg.type !== 'audio' || !recording || !ws || ws.readyState !== 1) return;
+            // Echo gate: skip audio chunks while TTS is playing to prevent
+            // the AI from hearing and transcribing its own voice
+            if (playing) return;
 
             const d = new Float32Array(msg.buffer);
 
@@ -1590,6 +1594,7 @@
             const proc = audioCtx.createScriptProcessor(4096, 1, 1);
             proc.onaudioprocess = e => {
                 if (!recording || !ws || ws.readyState !== 1) return;
+                if (playing) return; // echo gate
                 const d = e.inputBuffer.getChannelData(0);
                 const b = new Uint8Array(d.buffer.slice(0));
                 let s = ''; for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
@@ -1611,8 +1616,12 @@
         }
 
         function disconnectAudio() {
-            // Disconnect worklet/processor but keep AudioContext + mic alive in continuous mode
-            if (workletNode) { workletNode.port.postMessage({ type: 'stop' }); workletNode.disconnect(); workletNode = null; }
+            // Disconnect worklet/processor but keep AudioContext + mic + filter alive in continuous mode
+            if (workletNode) {
+                try { workletNode.port.postMessage({ type: 'stop' }); } catch(e) {}
+                workletNode.disconnect(); workletNode = null;
+            }
+            if (hpFilter) { try { hpFilter.disconnect(); } catch(e) {} }
             if (audioSrc) { audioSrc.disconnect(); audioSrc = null; }
         }
 
@@ -1646,17 +1655,28 @@
                 audioSrc = audioCtx.createMediaStreamSource(mic);
                 lastSound = Date.now();
 
+                // High-pass filter at 80Hz — removes HVAC rumble, desk vibration,
+                // handling noise before audio reaches the processor
+                if (!hpFilter || hpFilter.context !== audioCtx) {
+                    hpFilter = audioCtx.createBiquadFilter();
+                    hpFilter.type = 'highpass';
+                    hpFilter.frequency.value = 80;
+                    hpFilter.Q.value = 0.7; // Butterworth-like, no resonance peak
+                }
+
                 if (workletReady) {
                     // AudioWorklet path — audio processing on dedicated thread
                     workletNode = new AudioWorkletNode(audioCtx, 'voice-processor');
                     workletNode.port.onmessage = onWorkletMessage;
                     workletNode.port.postMessage({ type: 'start' });
-                    audioSrc.connect(workletNode);
+                    audioSrc.connect(hpFilter);
+                    hpFilter.connect(workletNode);
                     workletNode.connect(audioCtx.destination); // required to keep processing alive
                 } else {
                     // Fallback: ScriptProcessorNode (main thread, deprecated)
                     workletNode = setupFallbackProcessor();
-                    audioSrc.connect(workletNode);
+                    audioSrc.connect(hpFilter);
+                    hpFilter.connect(workletNode);
                     workletNode.connect(audioCtx.destination);
                 }
 
@@ -1730,6 +1750,7 @@
             paused = false;
             if (recording) stopRec();
             disconnectAudio();
+            hpFilter = null;
             if (audioCtx) { audioCtx.close(); audioCtx = null; workletReady = false; }
             if (mic) { mic.getTracks().forEach(t => t.stop()); mic = null; }
         }

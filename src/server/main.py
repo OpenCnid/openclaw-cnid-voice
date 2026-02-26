@@ -33,6 +33,7 @@ from .backend import AIBackend
 from .vad import VoiceActivityDetector
 from .auth import token_manager, load_keys_from_env, APIKey
 from .text_utils import clean_for_speech
+from .audio_processing import preprocess as preprocess_audio
 
 
 class Settings(BaseSettings):
@@ -373,6 +374,10 @@ async def websocket_endpoint(websocket: WebSocket):
                     if audio_buffer:
                         # Combine audio chunks
                         audio_data = np.concatenate(audio_buffer)
+                        
+                        # Preprocess: high-pass filter → noise reduction → trim → normalize
+                        loop = asyncio.get_event_loop()
+                        audio_data = await loop.run_in_executor(None, preprocess_audio, audio_data)
                         
                         # Transcribe
                         logger.debug("Transcribing audio...")
