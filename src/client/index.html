@@ -193,11 +193,12 @@
             font-size: 1.1rem;
             padding: 2px 4px;
             border-radius: 4px;
-            transition: color 0.15s;
+            transition: color 0.15s, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
             display: flex;
             align-items: center;
         }
         .hamburger:hover { color: var(--text); }
+        .hamburger.sidebar-open { transform: rotate(90deg); }
 
         /* ─── Header ─── */
         .header {
@@ -431,7 +432,7 @@
             max-width: 420px;
             height: 28px;
             opacity: 0;
-            transition: opacity 0.3s ease;
+            transition: opacity 0.15s ease;
         }
         .waveform-wrap.visible { opacity: 1; }
 
@@ -586,8 +587,23 @@
             font-size: 0.75rem;
             color: var(--text-muted);
             text-align: center;
-            transition: color 0.3s;
+            transition: color 0.3s, opacity 0.15s;
             min-height: 18px;
+        }
+
+        @keyframes orbPop {
+            0% { transform: scale(1); }
+            40% { transform: scale(1.06); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes orbSpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .state-processing .orb-btn {
+            animation: orbSpin 2.5s linear infinite;
         }
 
         .state-listening .state-label { color: var(--blue); }
@@ -1163,7 +1179,7 @@
         let paused = false; // continuous mode pause state
         let SILENCE_MS = settings.silence;
         const MIN_DUR = 600, MIN_LEN = 2;
-        const RELISTEN_DELAY = 250; // unified fast re-listen delay for continuous mode
+        const RELISTEN_DELAY = 150; // unified fast re-listen delay for continuous mode
 
         // Screen Wake Lock — keep screen on during active listening/speaking
         let wakeLock = null;
@@ -1313,10 +1329,10 @@
             const h = canvas.height / devicePixelRatio;
             const t = performance.now() / 1000;
             for (let i = 0; i < 48; i++) {
-                const target = (0.02 + 0.03 * Math.sin(t * 3 + i * 0.15)
-                              + 0.015 * Math.sin(t * 5.7 + i * 0.3)
-                              + 0.008 * Math.random()) * 600;
-                waveSmooth[i] += (Math.min(h - 2, target) - waveSmooth[i]) * 0.12;
+                const target = (0.035 + 0.055 * Math.sin(t * 3 + i * 0.15)
+                              + 0.025 * Math.sin(t * 5.7 + i * 0.3)
+                              + 0.015 * Math.random()) * 600;
+                waveSmooth[i] += (Math.min(h - 2, target) - waveSmooth[i]) * 0.18;
             }
             renderBars();
             waveAnim = requestAnimationFrame(animateSpeaking);
@@ -1938,6 +1954,9 @@
                 liveTranscript.textContent = ''; liveTranscript.classList.remove('visible');
                 waveWrap.classList.remove('silence-detected');
                 setState('listening');
+                // Pop animation for instant visual feedback
+                orbBtn.style.animation = 'none';
+                requestAnimationFrame(() => { orbBtn.style.animation = 'orbPop 0.25s ease-out'; });
                 ws.send(JSON.stringify({ type: 'start_listening' }));
             } catch(err) { showToast('Mic error: ' + err.message); }
         }
@@ -2346,17 +2365,19 @@
         const sidebarPref = localStorage.getItem('vc_sidebar');
         const sidebarCollapsed = sidebarPref === null ? true : sidebarPref === 'collapsed';
 
-        function openSidebar() { sidebar.classList.remove('collapsed'); backdrop.classList.add('show'); localStorage.setItem('vc_sidebar', 'open'); }
-        function closeSidebar() { sidebar.classList.add('collapsed'); backdrop.classList.remove('show'); localStorage.setItem('vc_sidebar', 'collapsed'); }
+        const hamburgerBtn = $('hamburgerBtn');
+        function openSidebar() { sidebar.classList.remove('collapsed'); backdrop.classList.add('show'); localStorage.setItem('vc_sidebar', 'open'); hamburgerBtn.classList.add('sidebar-open'); }
+        function closeSidebar() { sidebar.classList.add('collapsed'); backdrop.classList.remove('show'); localStorage.setItem('vc_sidebar', 'collapsed'); hamburgerBtn.classList.remove('sidebar-open'); }
         function toggleSidebar() { sidebar.classList.contains('collapsed') ? openSidebar() : closeSidebar(); }
 
-        $('hamburgerBtn').addEventListener('click', toggleSidebar);
+        hamburgerBtn.addEventListener('click', toggleSidebar);
         const sidebarCloseBtn = $('sidebarClose');
         if (sidebarCloseBtn) sidebarCloseBtn.addEventListener('click', closeSidebar);
         backdrop.addEventListener('click', closeSidebar);
         $('newChatBtn').addEventListener('click', createNewSession);
 
         if (sidebarCollapsed) sidebar.classList.add('collapsed');
+        else hamburgerBtn.classList.add('sidebar-open');
 
         // ── Export ──
         function exportTranscript() {
