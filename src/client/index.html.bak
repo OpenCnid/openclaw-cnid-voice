@@ -1657,7 +1657,6 @@
                     break;
 
                 case 'response_complete':
-                    finishStream();
                     if (curMsgEl) {
                         curMsgEl.querySelector('.msg-bubble').innerHTML = md(m.text);
                         curMsgEl.setAttribute('data-text', m.text);
