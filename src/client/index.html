@@ -1037,7 +1037,8 @@
 
         // ── State ──
         let ws = null;
-        let audioCtx = null, audioSrc = null, audioProc = null, mic = null;
+        let audioCtx = null, audioSrc = null, workletNode = null, mic = null;
+        let workletReady = false; // AudioWorklet module loaded
         let recording = false;
         // Default to continuous (always-on) for fresh installs
         const contPref = localStorage.getItem('voiceControlContinuous');
@@ -1373,6 +1374,10 @@
                 reconnectAttempts = 0;
                 dot.className = 'status-dot on';
                 connLbl.textContent = 'Connected';
+
+                // Send conversation context so the AI remembers after server restart
+                restoreServerContext();
+
                 // Resume appropriate state based on mode
                 if (continuous && !paused) {
                     setState('cont-idle');
@@ -1386,8 +1391,7 @@
                 // Stop recording cleanly on disconnect
                 if (recording) {
                     recording = false;
-                    if (audioProc) { audioProc.disconnect(); audioProc = null; }
-                    if (audioSrc) { audioSrc.disconnect(); audioSrc = null; }
+                    disconnectAudio();
                 }
                 if (e.code >= 4001 && e.code <= 4003) {
                     connLbl.textContent = ['','API key required','Invalid key','Rate limited'][e.code-4000];
@@ -1479,6 +1483,10 @@
                     setState('speaking');
                     break;
 
+                case 'context_restored':
+                    if (m.count > 0) console.log(`Server context restored: ${m.count} messages`);
+                    break;
+
                 case 'error':
                     showToast(m.message || 'Server error');
                     break;
@@ -1542,9 +1550,71 @@
             src.start();
         }
 
-        // ── Recording ──
-        // In continuous mode, keep mic + AudioContext alive to avoid teardown/rebuild latency
+        // ── Recording (AudioWorklet) ──
+        // AudioWorklet runs audio capture on a dedicated thread — no main-thread glitches.
+        // Falls back to ScriptProcessorNode if AudioWorklet is unavailable.
         let lastSound = Date.now();
+
+        // Handle messages from AudioWorklet processor
+        function onWorkletMessage(e) {
+            const msg = e.data;
+            if (msg.type !== 'audio' || !recording || !ws || ws.readyState !== 1) return;
+
+            const d = new Float32Array(msg.buffer);
+
+            // Send audio to server
+            const b = new Uint8Array(d.buffer);
+            let s = ''; for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
+            ws.send(JSON.stringify({ type: 'audio', data: btoa(s) }));
+
+            // Update bar targets (rendered at 60fps by animateListening)
+            updateBarTargets(d);
+
+            // Update mic level indicator
+            const pct = Math.min(100, (msg.energy || 0) * 800);
+            micLevelBar.style.width = pct + '%';
+            micLevelBar.classList.toggle('hot', pct > 85);
+            micLevelBar.classList.toggle('warm', pct > 50 && pct <= 85);
+            if (pct < 3) micLevelLabel.textContent = 'No input detected';
+            else micLevelLabel.textContent = '';
+
+            // Silence detect in continuous mode
+            if (continuous) {
+                if ((msg.energy || 0) > 0.01) lastSound = Date.now();
+                else if (speechDetected && Date.now() - lastSound > SILENCE_MS) stopRec();
+            }
+        }
+
+        // ScriptProcessorNode fallback (deprecated but universal)
+        function setupFallbackProcessor() {
+            const proc = audioCtx.createScriptProcessor(4096, 1, 1);
+            proc.onaudioprocess = e => {
+                if (!recording || !ws || ws.readyState !== 1) return;
+                const d = e.inputBuffer.getChannelData(0);
+                const b = new Uint8Array(d.buffer.slice(0));
+                let s = ''; for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
+                ws.send(JSON.stringify({ type: 'audio', data: btoa(s) }));
+                updateBarTargets(d);
+                let energy = 0; for (let i = 0; i < d.length; i++) energy += Math.abs(d[i]); energy /= d.length;
+                const pct = Math.min(100, energy * 800);
+                micLevelBar.style.width = pct + '%';
+                micLevelBar.classList.toggle('hot', pct > 85);
+                micLevelBar.classList.toggle('warm', pct > 50 && pct <= 85);
+                if (pct < 3) micLevelLabel.textContent = 'No input detected';
+                else micLevelLabel.textContent = '';
+                if (continuous) {
+                    if (energy > 0.01) lastSound = Date.now();
+                    else if (speechDetected && Date.now() - lastSound > SILENCE_MS) stopRec();
+                }
+            };
+            return proc;
+        }
+
+        function disconnectAudio() {
+            // Disconnect worklet/processor but keep AudioContext + mic alive in continuous mode
+            if (workletNode) { workletNode.port.postMessage({ type: 'stop' }); workletNode.disconnect(); workletNode = null; }
+            if (audioSrc) { audioSrc.disconnect(); audioSrc = null; }
+        }
 
         async function startRec() {
             if (recording) return;
@@ -1557,47 +1627,38 @@
                 // Reuse AudioContext in continuous mode when possible
                 if (!audioCtx || audioCtx.state === 'closed') {
                     audioCtx = new AudioContext({ sampleRate: 16000 });
+                    workletReady = false;
                 }
                 if (audioCtx.state === 'suspended') {
                     await audioCtx.resume();
                 }
 
-                audioSrc = audioCtx.createMediaStreamSource(mic);
-                audioProc = audioCtx.createScriptProcessor(4096, 1, 1);
+                // Load AudioWorklet module once per AudioContext
+                if (!workletReady && audioCtx.audioWorklet) {
+                    try {
+                        await audioCtx.audioWorklet.addModule('/audio-processor.js');
+                        workletReady = true;
+                    } catch (wErr) {
+                        console.warn('AudioWorklet load failed, using fallback:', wErr);
+                    }
+                }
 
+                audioSrc = audioCtx.createMediaStreamSource(mic);
                 lastSound = Date.now();
 
-                audioProc.onaudioprocess = e => {
-                    if (!recording || !ws || ws.readyState !== 1) return;
-                    const d = e.inputBuffer.getChannelData(0);
-                    // Send audio
-                    const b = new Uint8Array(d.buffer.slice(0));
-                    let s = ''; for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
-                    ws.send(JSON.stringify({ type: 'audio', data: btoa(s) }));
-
-                    // Update bar targets (rendered at 60fps by animateListening)
-                    updateBarTargets(d);
-
-                    // Update mic level indicator
-                    const pct = Math.min(100, micEnergy * 800);
-                    micLevelBar.style.width = pct + '%';
-                    micLevelBar.classList.toggle('hot', pct > 85);
-                    micLevelBar.classList.toggle('warm', pct > 50 && pct <= 85);
-                    if (pct < 3) micLevelLabel.textContent = 'No input detected';
-                    else if (pct < 15) micLevelLabel.textContent = '';
-                    else micLevelLabel.textContent = '';
-
-                    // Silence detect in continuous mode
-                    if (continuous) {
-                        let e2 = 0; for (let i = 0; i < d.length; i++) e2 += Math.abs(d[i]);
-                        e2 /= d.length;
-                        if (e2 > 0.01) lastSound = Date.now();
-                        else if (speechDetected && Date.now() - lastSound > SILENCE_MS) stopRec();
-                    }
-                };
-
-                audioSrc.connect(audioProc);
-                audioProc.connect(audioCtx.destination);
+                if (workletReady) {
+                    // AudioWorklet path — audio processing on dedicated thread
+                    workletNode = new AudioWorkletNode(audioCtx, 'voice-processor');
+                    workletNode.port.onmessage = onWorkletMessage;
+                    workletNode.port.postMessage({ type: 'start' });
+                    audioSrc.connect(workletNode);
+                    workletNode.connect(audioCtx.destination); // required to keep processing alive
+                } else {
+                    // Fallback: ScriptProcessorNode (main thread, deprecated)
+                    workletNode = setupFallbackProcessor();
+                    audioSrc.connect(workletNode);
+                    workletNode.connect(audioCtx.destination);
+                }
 
                 recording = true; speechDetected = false; recStart = Date.now();
                 setState('listening');
@@ -1611,11 +1672,9 @@
             const short = dur < MIN_DUR;
             recording = false;
 
-            // Disconnect processor but keep AudioContext + mic alive in continuous mode
-            if (audioProc) { audioProc.disconnect(); audioProc = null; }
-            if (audioSrc) { audioSrc.disconnect(); audioSrc = null; }
+            disconnectAudio();
             if (!continuous) {
-                if (audioCtx) { audioCtx.close(); audioCtx = null; }
+                if (audioCtx) { audioCtx.close(); audioCtx = null; workletReady = false; }
                 if (mic) { mic.getTracks().forEach(t => t.stop()); mic = null; }
             }
 
@@ -1640,10 +1699,8 @@
             if (!continuous || paused) return;
             paused = true;
             if (recording) {
-                // Stop current recording without processing
                 recording = false;
-                if (audioProc) { audioProc.disconnect(); audioProc = null; }
-                if (audioSrc) { audioSrc.disconnect(); audioSrc = null; }
+                disconnectAudio();
                 if (ws && ws.readyState === 1) {
                     ws.send(JSON.stringify({ type: 'cancel_listening' }));
                 }
@@ -1672,9 +1729,8 @@
         function teardownContinuous() {
             paused = false;
             if (recording) stopRec();
-            if (audioProc) { audioProc.disconnect(); audioProc = null; }
-            if (audioSrc) { audioSrc.disconnect(); audioSrc = null; }
-            if (audioCtx) { audioCtx.close(); audioCtx = null; }
+            disconnectAudio();
+            if (audioCtx) { audioCtx.close(); audioCtx = null; workletReady = false; }
             if (mic) { mic.getTracks().forEach(t => t.stop()); mic = null; }
         }
 
@@ -1761,8 +1817,7 @@
             // Cancel any active recording to prevent overlapping responses
             if (recording) {
                 recording = false;
-                if (audioProc) { audioProc.disconnect(); audioProc = null; }
-                if (audioSrc) { audioSrc.disconnect(); audioSrc = null; }
+                disconnectAudio();
                 if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'cancel_listening' }));
             }
 
@@ -1839,6 +1894,26 @@
             $('silenceVal').textContent = (settings.silence / 1000).toFixed(1) + 's';
             localStorage.setItem('vc_silence', settings.silence);
         });
+
+        // ── Context Recovery ──
+        // Send conversation history to server on connect so AI remembers
+        // even after server restart. Uses current session's saved messages.
+        function restoreServerContext() {
+            if (!ws || ws.readyState !== 1) return;
+            if (!activeSessionId) return;
+            const msgs = getSessionMsgs(activeSessionId);
+            if (!msgs.length) return;
+
+            // Convert to role/text pairs, send last 20 turns
+            const history = msgs.slice(-20).map(m => ({
+                role: m.role === 'user' ? 'user' : 'assistant',
+                text: m.text || '',
+            })).filter(m => m.text.trim());
+
+            if (history.length) {
+                ws.send(JSON.stringify({ type: 'context_restore', messages: history }));
+            }
+        }
 
         // ── Multi-Session Management ──
         const SESSIONS_INDEX = 'vc_sessions';   // [{id, title, created, updated}]

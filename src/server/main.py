@@ -171,6 +171,16 @@ async def index():
     return FileResponse("src/client/index.html")
 
 
+@app.get("/audio-processor.js")
+@app.get("/voice/audio-processor.js")
+async def audio_worklet():
+    """Serve the AudioWorklet processor (must be same-origin)."""
+    return FileResponse(
+        "src/client/audio-processor.js",
+        media_type="application/javascript",
+    )
+
+
 @app.post("/api/keys")
 async def create_api_key(
     name: str,
@@ -394,6 +404,28 @@ async def websocket_endpoint(websocket: WebSocket):
                     if backend:
                         backend.clear_history()
                     logger.info("Session reset by client")
+                
+                elif msg_type == "context_restore":
+                    # Client is sending conversation history for context recovery
+                    # (e.g. after server restart or reconnect)
+                    messages = msg.get("messages", [])
+                    if backend and messages:
+                        backend.clear_history()
+                        restored = 0
+                        for m in messages[-20:]:  # Cap at last 20 turns
+                            role = m.get("role")
+                            text = m.get("text", "").strip()
+                            if role in ("user", "assistant") and text:
+                                backend.conversation_history.append({
+                                    "role": role,
+                                    "content": text,
+                                })
+                                restored += 1
+                        logger.info(f"Context restored: {restored} messages from client")
+                        await websocket.send_json({
+                            "type": "context_restored",
+                            "count": restored,
+                        })
                     
                 elif msg_type == "cancel_listening":
                     # Client detected noise/too-short — discard without processing
