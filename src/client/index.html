@@ -2429,6 +2429,8 @@
             renderSidebar();
         }
 
+        let loadingSession = false; // flag to suppress auto-save during session load
+
         function loadSession(id) {
             // Save current first
             if (activeSessionId && activeSessionId !== id) saveCurrentSession();
@@ -2437,6 +2439,7 @@
             localStorage.setItem(ACTIVE_KEY, id);
 
             // Clear chat
+            loadingSession = true;
             chat.innerHTML = '';
             lastMsgRole = null;
 
@@ -2452,6 +2455,8 @@
                     if (timeEl && m.time) timeEl.textContent = m.time;
                 });
             }
+
+            loadingSession = false;
 
             // Reset backend conversation
             if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'new_session' }));
@@ -2513,11 +2518,17 @@
                     </div>
                     <button class="session-delete" title="Delete">🗑</button>`;
 
-                el.querySelector('.session-info').addEventListener('click', () => loadSession(s.id));
+                // Click to load, but delay to allow dblclick to cancel it
+                let clickTimer = null;
+                el.querySelector('.session-info').addEventListener('click', () => {
+                    clickTimer = setTimeout(() => loadSession(s.id), 250);
+                });
                 // Double-click to rename
                 el.querySelector('.session-title').addEventListener('dblclick', e => {
                     e.stopPropagation();
-                    const titleEl = e.target;
+                    if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
+                    const titleEl = el.querySelector('.session-title');
+                    if (!titleEl) return;
                     const input = document.createElement('input');
                     input.className = 'session-rename-input';
                     input.value = s.title || '';
@@ -2525,18 +2536,22 @@
                     titleEl.replaceWith(input);
                     input.focus();
                     input.select();
+                    let saved = false;
                     const save = () => {
+                        if (saved) return; saved = true;
                         const newTitle = input.value.trim();
-                        if (newTitle) {
-                            s.title = newTitle;
-                            saveSessions(getSessions().map(x => x.id === s.id ? { ...x, title: newTitle } : x));
+                        const sessions = getSessions();
+                        const target = sessions.find(x => x.id === s.id);
+                        if (target && newTitle) {
+                            target.title = newTitle;
+                            saveSessions(sessions);
                         }
                         renderSidebar();
                     };
                     input.addEventListener('blur', save);
                     input.addEventListener('keydown', ev => {
-                        if (ev.key === 'Enter') { ev.preventDefault(); save(); }
-                        if (ev.key === 'Escape') { renderSidebar(); }
+                        if (ev.key === 'Enter') { ev.preventDefault(); input.blur(); }
+                        if (ev.key === 'Escape') { saved = true; renderSidebar(); }
                     });
                 });
                 el.querySelector('.session-delete').addEventListener('click', e => {
@@ -2605,7 +2620,7 @@
         const origAddMsg = addMsg;
         addMsg = function(role, text) {
             const el = origAddMsg(role, text);
-            setTimeout(saveCurrentSession, 100);
+            if (!loadingSession) setTimeout(saveCurrentSession, 100);
             return el;
         };
 
